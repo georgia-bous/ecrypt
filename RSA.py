@@ -2,6 +2,7 @@ import math
 import random
 import os
 
+
 # Function to generate a prime number
 def generate_prime():
     # Generate a random number with 256 bits
@@ -70,10 +71,6 @@ def pad_message(msg, block_size):
     padding = chr(pad_size) * pad_size
     return msg + padding
 
-# Function to unpad the message
-def unpad_message(msg):
-    padding_size = ord(msg[-1])
-    return msg[:-padding_size]
 
 # Function to unpad the message
 def unpad_message(msg):
@@ -128,3 +125,11 @@ def decrypt_cbc(private_key, ciphertext):
         m = pow(c, private_key[1], private_key[0]) ^ int.from_bytes(iv if i == 0 else blocks[i - 1], byteorder='big')
         plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
     return unpad_message(b''.join(plaintext_blocks))
+
+
+public_key, private_key = generate_keys()
+msg = input('Enter the message you want to send: ')
+c = encrypt_ecb(public_key, msg)
+print('Ciphertext: ', c)
+dm = decrypt_ecb(private_key, c)
+print('Decrypted message: ', dm)
