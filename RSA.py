@@ -1,3 +1,4 @@
+import base64
 import math
 import random
 import os
@@ -51,28 +52,28 @@ def mod_inverse(a, m):
 # Function to pad the message
 def pad_message(msg, block_size):
     pad_size = block_size - len(msg) % block_size
-    padding = chr(pad_size) * pad_size
+    padding = bytes([pad_size] * pad_size)
     return msg + padding
 
-
-# Function to unpad the message
 def unpad_message(msg):
     padding_size = msg[-1]
     return msg[:-padding_size]
 
 
 
-# Function to encrypt a message using ECB mode
 def encrypt_ecb(public_key, msg):
     block_size = (public_key[0].bit_length() + 7) // 8
-    padded_msg = pad_message(msg, block_size)
+    padded_msg = pad_message(msg.encode(), block_size)
     blocks = [padded_msg[i:i + block_size] for i in range(0, len(padded_msg), block_size)]
     cipher_blocks = []
     for block in blocks:
-        m = int.from_bytes(block.encode(), byteorder='big')
+        m = int.from_bytes(block, byteorder='big')
         c = pow(m, public_key[1], public_key[0])
         cipher_blocks.append(c.to_bytes(block_size, byteorder='big'))
     return b''.join(cipher_blocks)
+
+
+
 
 
 def decrypt_ecb(private_key, ciphertext):
@@ -83,7 +84,10 @@ def decrypt_ecb(private_key, ciphertext):
         c = int.from_bytes(block, byteorder='big')
         m = pow(c, private_key[1], private_key[0])
         plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
-    return unpad_message(b''.join(plaintext_blocks))
+    plaintext = unpad_message(b''.join(plaintext_blocks))
+    return plaintext.decode('utf-8')
+
+
 
 
 
@@ -92,4 +96,4 @@ msg = input("Enter the message you want to send: ")
 c = encrypt_ecb(public_key, msg)
 print("Ciphertext: ", c)
 dm = decrypt_ecb(private_key, c)
-print("Decrypted message:", dm.decode('utf-8'))
+print("Decrypted message:", dm)
