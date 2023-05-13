@@ -1,19 +1,18 @@
 import math
 import random
 import os
-
 import sympy
 
+from RSA import decrypt_ecb
 
-# Function to generate a prime number
+
 def generate_prime():  # uses miller rabin, not 100%
     # Generate a random number with 512 bits.
-    t = random.getrandbits(1024)  # would be good to assure its big
+    t = random.getrandbits(2048)  # would be good to assure its big
     p = sympy.nextprime(t)
     return p
 
 
-# Function to generate the public and private keys
 def generate_keys():
     # Generate two large prime numbers
     p = generate_prime()
@@ -37,9 +36,23 @@ def generate_keys():
     return (n, e), (n, d)
 
 
-# Function to calculate the modular multiplicative inverse of a modulo m using the extended Euclidean algorithm
+# Function to check if a number is prime
+def is_prime(n):
+    if n <= 1:
+        return False
+    elif n <= 3:
+        return True
+    elif n % 2 == 0 or n % 3 == 0:
+        return False
+    i = 5
+    while i * i <= n:
+        if n % i == 0 or n % (i + 2) == 0:
+            return False
+        i += 6
+    return True
+
+
 def mod_inverse(a, m):
-    # Compute the modular inverse of a modulo m using the extended Euclidean algorithm
     x, y, lastx, lasty = 0, 1, 1, 0
     while m:
         a, (q, m) = m, divmod(a, m)
@@ -57,14 +70,12 @@ def pad_message(msg, block_size):
 
 # Function to unpad the message
 def unpad_message(msg):
-    padding_size = msg[-1]
+    padding_size = ord(msg[-1])
     return msg[:-padding_size]
 
 
-
-# Function to encrypt a message using ECB mode
 def encrypt_ecb(public_key, msg):
-    block_size = (public_key[0].bit_length() + 7) // 8
+    block_size = int(math.log2(public_key[0])) // 8
     padded_msg = pad_message(msg, block_size)
     blocks = [padded_msg[i:i + block_size] for i in range(0, len(padded_msg), block_size)]
     cipher_blocks = []
@@ -75,21 +86,32 @@ def encrypt_ecb(public_key, msg):
     return b''.join(cipher_blocks)
 
 
-def decrypt_ecb(private_key, ciphertext):
-    block_size = (private_key[0].bit_length() + 7) // 8
-    blocks = [ciphertext[i:i + block_size] for i in range(0, len(ciphertext), block_size)]
-    plaintext_blocks = []
-    for block in blocks:
-        c = int.from_bytes(block, byteorder='big')
-        m = pow(c, private_key[1], private_key[0])
-        plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
-    return unpad_message(b''.join(plaintext_blocks))
-
-
-
 public_key, private_key = generate_keys()
 msg = input("Enter the message you want to send: ")
 c = encrypt_ecb(public_key, msg)
 print("Ciphertext: ", c)
 dm = decrypt_ecb(private_key, c)
-print("Decrypted message:", dm.decode('utf-8'))
+print("Decrypted message:", dm)
+def encrypt_cbc(public_key, msg):
+    block_size = int(math.log2(public_key[0])) // 8
+    iv = os.urandom(block_size)
+    padded_msg = pad_message(msg, block_size)
+    blocks = [padded_msg[i:i + block_size] for i in range(0, len(padded_msg), block_size)]
+    cipher_blocks = [iv]
+    for block in blocks:
+        m = int.from_bytes(block.encode(), byteorder='big')
+        c = pow(m ^ int.from_bytes(cipher_blocks[-1], byteorder='big'), public_key[1], public_key[0])
+        cipher_blocks.append(c.to_bytes(block_size, byteorder='big'))
+    return b''.join(cipher_blocks[1:])
+
+
+def decrypt_cbc(private_key, ciphertext):
+    block_size = int(math.log2(private_key[0])) // 8
+    iv = os.urandom(block_size)
+    blocks = [ciphertext[i:i + block_size] for i in range(0, len(ciphertext), block_size)]
+    plaintext_blocks = []
+    for i, block in enumerate(blocks):
+        c = int.from_bytes(block, byteorder='big')
+        m = pow(c, private_key[1], private_key[0]) ^ int.from_bytes(iv if i == 0 else blocks[i - 1], byteorder='big')
+        plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
+    return unpad_message(b''.join(plaintext_blocks))
