@@ -89,4 +89,13 @@ def encrypt_ecb(public_key, msg):
         cipher_blocks.append(c.to_bytes(block_size, byteorder='big'))
     return b''.join(cipher_blocks)
 
+def decrypt_ecb(private_key, ciphertext):
+    block_size = int(math.log2(private_key[0])) // 8
+    blocks = [ciphertext[i:i+block_size] for i in range(0, len(ciphertext), block_size)]
+    plaintext_blocks = []
+    for block in blocks:
+        c = int.from_bytes(block, byteorder='big')
+        m = pow(c, private_key[1], private_key[0])
+        plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
+    return unpad_message(b''.join(plaintext_blocks))
 
