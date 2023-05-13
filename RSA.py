@@ -1,6 +1,5 @@
 import math
 import random
-
 import sympy
 
 
@@ -49,14 +48,14 @@ def mod_inverse(a, m):
 
 # Function to pad the message
 def pad_message(msg, block_size):
-    pad_size = block_size - len(msg) % block_size
+    pad_size = (len(msg) - block_size) % block_size
     padding = bytes([pad_size] * pad_size)
     return msg + padding
 
 
 def unpad_message(msg):
     padding_size = msg[-1]
-    return msg[:-padding_size]
+    return msg[:-padding_size].lstrip(b'\x00')
 
 
 def encrypt_ecb(public_key, msg):
@@ -80,7 +79,7 @@ def decrypt_ecb(private_key, ciphertext):
         m = pow(c, private_key[1], private_key[0])
         plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
     plaintext = unpad_message(b''.join(plaintext_blocks))
-    return plaintext.decode()
+    return plaintext.decode('utf-8')
 
 
 public_key, private_key = generate_keys()
