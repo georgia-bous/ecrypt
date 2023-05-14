@@ -90,55 +90,77 @@ def unpad_message(padded_message):
 
 # Function that performs encryption with ECB mode
 def encrypt_ecb(public_key, msg):
+    # Extracts public key values
     n, e = public_key
+    # Calculates the block size needed based on the key length
     block_size = (n.bit_length() + 7) // 8 - 1
+    # Pads the message to be a multiple of the block size
     padded_msg = pad_message(msg.encode(), block_size)
+    # Breaks the padded message into blocks
     blocks = [padded_msg[i:i + block_size] for i in range(0, len(padded_msg), block_size)]
     cipher_blocks = []
+    # Encrypts each block and appends it to a list
     for block in blocks:
         m = int.from_bytes(block, byteorder='big')
         c = pow(m, e, n)
         cipher_blocks.append(c.to_bytes(block_size + 1, byteorder='big'))
+    # Joins the encrypted blocks into a single byte string
     return b''.join(cipher_blocks)
 
 
 # Function that performs decryption with ECB mode
 def decrypt_ecb(private_key, ciphertext):
+    # Extracts private key values
     n, d = private_key
+    # Calculates the block size needed based on the key length
     block_size = (n.bit_length() + 7) // 8 - 1
+    # Breaks the ciphertext into blocks
     blocks = [ciphertext[i:i + block_size + 1] for i in range(0, len(ciphertext), block_size + 1)]
+    # Decrypts each block and appends it to a list
     plaintext_blocks = []
     for block in blocks:
         c = int.from_bytes(block, byteorder='big')
         m = pow(c, d, n)
         plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
+    # Joins the decrypted blocks into a single byte string
     plaintext = unpad_message(b''.join(plaintext_blocks))
+    # Removes any leading null bytes and returns the plaintext as a string
     plaintext = plaintext.lstrip(b'\x00')
     return plaintext.decode('utf-8')
 
 
 # Function that performs encryption with CBC mode
 def encrypt_cbc(public_key, msg):
+    # Extracts public key values
     n, e = public_key
+    # Calculates the block size needed based on the key length
     block_size = (n.bit_length() + 7) // 8 - 1
+    # Generates a random initialization vector
     iv = os.urandom(block_size)
+    # Pads the message to be a multiple of the block size
     padded_msg = pad_message(msg.encode(), block_size)
+    # Breaks the padded message into blocks and XORs each block with the previous ciphertext block
     blocks = [padded_msg[i:i + block_size] for i in range(0, len(padded_msg), block_size)]
     cipher_blocks = [iv]
     for block in blocks:
         m = int.from_bytes(block, byteorder='big')
         c = pow(m ^ int.from_bytes(cipher_blocks[-1], byteorder='big'), e, n)
         cipher_blocks.append(c.to_bytes(block_size + 1, byteorder='big'))
+    # Joins the initialization vector and the encrypted blocks into a single byte string
     ciphertext = iv + b''.join(cipher_blocks[1:])
     return ciphertext
 
 
 # Function that performs decryption with CBC mode
 def decrypt_cbc(private_key, ciphertext):
+    # Extracts private key values
     n, d = private_key
+    # Calculates the block size needed based on the key length
     block_size = (n.bit_length() + 7) // 8 - 1
     iv = ciphertext[:block_size]
+    # Breaks the ciphertext into blocks
     blocks = [ciphertext[i:i + block_size + 1] for i in range(block_size, len(ciphertext), block_size + 1)]
+    # Decrypts each block and appends it to a list
     plaintext_blocks = []
     prev_block = iv
     for block in blocks:
@@ -146,7 +168,9 @@ def decrypt_cbc(private_key, ciphertext):
         m = pow(c, d, n) ^ int.from_bytes(prev_block, byteorder='big')
         plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
         prev_block = block
+    # Joins the decrypted blocks into a single byte string
     plaintext = unpad_message(b''.join(plaintext_blocks))
+    # Removes any leading null bytes and returns the plaintext as a string
     plaintext = plaintext.lstrip(b'\x00')
     return plaintext.decode()
 
