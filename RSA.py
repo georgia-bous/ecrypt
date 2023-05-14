@@ -190,7 +190,7 @@ except FileNotFoundError:
 # Print the outcome of the ECB mode
 print("ECB: ")
 c1 = encrypt_ecb(public_key, msg)
-
+print("Ciphertext: ", c1)
 dm1 = decrypt_ecb(private_key, c1)
 
 # Print the decrypted message
@@ -199,7 +199,7 @@ print("Decrypted message:", dm1)
 # Print the outcome of the ECB mode
 print("CBC: ")
 c2 = encrypt_cbc(public_key, msg)
-
+print("Ciphertext: ", c2)
 dm2 = decrypt_cbc(private_key, c2)
 
 # Print the decrypted message
