@@ -80,7 +80,6 @@ def pad_message(msg, block_size):
     return padded_msg
 
 
-# Function to pad the message
 def unpad_message(padded_message):
     padding_length = padded_message[-1]
     return padded_message[:-padding_length]
@@ -101,7 +100,7 @@ def encrypt_ecb(public_key, msg):
 
 def decrypt_ecb(private_key, ciphertext):
     n, d = private_key
-    block_size = (n.bit_length() + 7) // 8
+    block_size = (n.bit_length() + 7) // 8 - 1
     blocks = [ciphertext[i:i + block_size + 1] for i in range(0, len(ciphertext), block_size + 1)]
     plaintext_blocks = []
     for block in blocks:
@@ -110,7 +109,7 @@ def decrypt_ecb(private_key, ciphertext):
         plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
     plaintext = unpad_message(b''.join(plaintext_blocks))
     plaintext = plaintext.lstrip(b'\x00')
-    return plaintext.decode()
+    return plaintext.decode('utf-8')
 
 
 def encrypt_cbc(public_key, msg):
@@ -124,7 +123,7 @@ def encrypt_cbc(public_key, msg):
         m = int.from_bytes(block, byteorder='big')
         c = pow(m ^ int.from_bytes(cipher_blocks[-1], byteorder='big'), e, n)
         cipher_blocks.append(c.to_bytes(block_size + 1, byteorder='big'))
-    ciphertext = iv + b''.join([bytes(block_size) for block_size in cipher_blocks[1:]])
+    ciphertext = iv + b''.join(cipher_blocks[1:])
     return ciphertext
 
 
@@ -134,14 +133,15 @@ def decrypt_cbc(private_key, ciphertext):
     iv = ciphertext[:block_size]
     blocks = [ciphertext[i:i + block_size + 1] for i in range(block_size, len(ciphertext), block_size + 1)]
     plaintext_blocks = []
-    for i, block in enumerate(blocks):
+    prev_block = iv
+    for block in blocks:
         c = int.from_bytes(block, byteorder='big')
-        m = pow(c, d, n) ^ int.from_bytes(iv, byteorder='big') if i == 0 else pow(c, d, n) ^ int.from_bytes(blocks[i - 1], byteorder='big')
+        m = pow(c, d, n) ^ int.from_bytes(prev_block, byteorder='big')
         plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
+        prev_block = block
     plaintext = unpad_message(b''.join(plaintext_blocks))
     plaintext = plaintext.lstrip(b'\x00')
     return plaintext.decode()
-
 
 
 public_key, private_key = generate_keys()
