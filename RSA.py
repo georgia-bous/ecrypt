@@ -5,8 +5,8 @@ import os
 
 
 # Function to generate a prime number
-def generate_prime():  # uses miller rabin, not 100%
-    # Generate a random number with 512 bits.
+def generate_prime():
+    # Generate a random number with 1024 bits.
     p = random.getrandbits(1024)
     if is_prime(p):
         return p
@@ -15,6 +15,7 @@ def generate_prime():  # uses miller rabin, not 100%
         return t
 
 
+# Function to check if number is prime with Miller-Rabin primality test.
 def is_prime(n, k=128):
     if n == 2 or n == 3:
         return True
@@ -43,6 +44,7 @@ def generate_keys():
     # Generate two large prime numbers
     p = generate_prime()
     q = generate_prime()
+
     # Calculate n and phi(n)
     n = p * q
     phi = (p - 1) * (q - 1)
@@ -80,11 +82,13 @@ def pad_message(msg, block_size):
     return padded_msg
 
 
+# Function to unpad the message
 def unpad_message(padded_message):
     padding_length = padded_message[-1]
     return padded_message[:-padding_length]
 
 
+# Function that performs encryption with ECB mode
 def encrypt_ecb(public_key, msg):
     n, e = public_key
     block_size = (n.bit_length() + 7) // 8 - 1
@@ -98,6 +102,7 @@ def encrypt_ecb(public_key, msg):
     return b''.join(cipher_blocks)
 
 
+# Function that performs decryption with ECB mode
 def decrypt_ecb(private_key, ciphertext):
     n, d = private_key
     block_size = (n.bit_length() + 7) // 8 - 1
@@ -112,6 +117,7 @@ def decrypt_ecb(private_key, ciphertext):
     return plaintext.decode('utf-8')
 
 
+# Function that performs encryption with CBC mode
 def encrypt_cbc(public_key, msg):
     n, e = public_key
     block_size = (n.bit_length() + 7) // 8 - 1
@@ -127,6 +133,7 @@ def encrypt_cbc(public_key, msg):
     return ciphertext
 
 
+# Function that performs decryption with CBC mode
 def decrypt_cbc(private_key, ciphertext):
     n, d = private_key
     block_size = (n.bit_length() + 7) // 8 - 1
@@ -144,7 +151,10 @@ def decrypt_cbc(private_key, ciphertext):
     return plaintext.decode()
 
 
+# Generate random public and private key
 public_key, private_key = generate_keys()
+
+# Give a text file as an input
 filename = input("Enter the filename containing the message: ")
 try:
     with open(filename, 'r') as f:
@@ -152,13 +162,21 @@ try:
 except FileNotFoundError:
     print("Error: File not found")
     exit()
+
+# Print the outcome of the ECB mode
 print("ECB: ")
 c1 = encrypt_ecb(public_key, msg)
-print("Ciphertext: ", c1)
+
 dm1 = decrypt_ecb(private_key, c1)
+
+# Print the decrypted message
 print("Decrypted message:", dm1)
+
+# Print the outcome of the ECB mode
 print("CBC: ")
 c2 = encrypt_cbc(public_key, msg)
-print("Ciphertext: ", c2)
+
 dm2 = decrypt_cbc(private_key, c2)
+
+# Print the decrypted message
 print("Decrypted message:", dm2)
