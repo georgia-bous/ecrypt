@@ -147,7 +147,7 @@ def decrypt_cbc(private_key, ciphertext):
 public_key, private_key = generate_keys()
 filename = input("Enter the filename containing the message: ")
 try:
-    with open(filename, 'rb') as f:
+    with open(filename, 'r') as f:
         msg = f.read()
 except FileNotFoundError:
     print("Error: File not found")
