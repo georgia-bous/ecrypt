@@ -145,7 +145,13 @@ def decrypt_cbc(private_key, ciphertext):
 
 
 public_key, private_key = generate_keys()
-msg = input("Enter the message you want to send: ")
+filename = input("Enter the filename containing the message: ")
+try:
+    with open(filename, 'rb') as f:
+        msg = f.read()
+except FileNotFoundError:
+    print("Error: File not found")
+    exit()
 print("ECB: ")
 c1 = encrypt_ecb(public_key, msg)
 print("Ciphertext: ", c1)
