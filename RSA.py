@@ -1,15 +1,41 @@
 import math
-import os
 import random
 import sympy
+import os
 
 
 # Function to generate a prime number
 def generate_prime():  # uses miller rabin, not 100%
     # Generate a random number with 512 bits.
-    t = random.getrandbits(1024)  # would be good to assure its big
-    p = sympy.nextprime(t)
-    return p
+    p = random.getrandbits(1024)
+    if is_prime(p):
+        return p
+    else:
+        t = sympy.nextprime(p)
+        return t
+
+
+def is_prime(n, k=128):
+    if n == 2 or n == 3:
+        return True
+    if n <= 1 or n % 2 == 0:
+        return False
+    r, s = 0, n - 1
+    while s % 2 == 0:
+        r += 1
+        s //= 2
+    for _ in range(k):
+        a = random.randrange(2, n - 1)
+        x = pow(a, s, n)
+        if x == 1 or x == n - 1:
+            continue
+        for _ in range(r - 1):
+            x = pow(x, 2, n)
+            if x == n - 1:
+                break
+        else:
+            return False
+    return True
 
 
 # Function to generate the public and private keys
@@ -17,7 +43,6 @@ def generate_keys():
     # Generate two large prime numbers
     p = generate_prime()
     q = generate_prime()
-
     # Calculate n and phi(n)
     n = p * q
     phi = (p - 1) * (q - 1)
@@ -49,64 +74,74 @@ def mod_inverse(a, m):
 
 # Function to pad the message
 def pad_message(msg, block_size):
-    pad_size = (len(msg) - block_size) % block_size
+    pad_size = block_size - len(msg) % block_size
     padding = bytes([pad_size] * pad_size)
-    return msg + padding
+    padded_msg = msg + padding
+    return padded_msg
 
 
-def unpad_message(msg):
-    padding_size = msg[-1]
-    return msg[:-padding_size].lstrip(b'\x00')
+# Function to pad the message
+def unpad_message(padded_message):
+    padding_length = padded_message[-1]
+    return padded_message[:-padding_length]
 
 
 def encrypt_ecb(public_key, msg):
-    block_size = (public_key[0].bit_length() + 7) // 8
+    n, e = public_key
+    block_size = (n.bit_length() + 7) // 8 - 1
     padded_msg = pad_message(msg.encode(), block_size)
     blocks = [padded_msg[i:i + block_size] for i in range(0, len(padded_msg), block_size)]
     cipher_blocks = []
     for block in blocks:
         m = int.from_bytes(block, byteorder='big')
-        c = pow(m, public_key[1], public_key[0])
-        cipher_blocks.append(c.to_bytes(block_size, byteorder='big'))
+        c = pow(m, e, n)
+        cipher_blocks.append(c.to_bytes(block_size + 1, byteorder='big'))
     return b''.join(cipher_blocks)
 
 
 def decrypt_ecb(private_key, ciphertext):
-    block_size = (private_key[0].bit_length() + 7) // 8
-    blocks = [ciphertext[i:i + block_size] for i in range(0, len(ciphertext), block_size)]
+    n, d = private_key
+    block_size = (n.bit_length() + 7) // 8
+    blocks = [ciphertext[i:i + block_size + 1] for i in range(0, len(ciphertext), block_size + 1)]
     plaintext_blocks = []
     for block in blocks:
         c = int.from_bytes(block, byteorder='big')
-        m = pow(c, private_key[1], private_key[0])
+        m = pow(c, d, n)
         plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
     plaintext = unpad_message(b''.join(plaintext_blocks))
-    return plaintext.decode('utf-8')
+    plaintext = plaintext.lstrip(b'\x00')
+    return plaintext.decode()
 
 
 def encrypt_cbc(public_key, msg):
-    block_size = (public_key[0].bit_length() + 7) // 8
+    n, e = public_key
+    block_size = (n.bit_length() + 7) // 8 - 1
     iv = os.urandom(block_size)
     padded_msg = pad_message(msg.encode(), block_size)
     blocks = [padded_msg[i:i + block_size] for i in range(0, len(padded_msg), block_size)]
     cipher_blocks = [iv]
     for block in blocks:
         m = int.from_bytes(block, byteorder='big')
-        c = pow(m ^ int.from_bytes(cipher_blocks[-1], byteorder='big'), public_key[1], public_key[0])
-        cipher_blocks.append(c.to_bytes(block_size, byteorder='big'))
-    ciphertext = b''.join(cipher_blocks)
+        c = pow(m ^ int.from_bytes(cipher_blocks[-1], byteorder='big'), e, n)
+        cipher_blocks.append(c.to_bytes(block_size + 1, byteorder='big'))
+    ciphertext = iv + b''.join([bytes(block_size) for block_size in cipher_blocks[1:]])
     return ciphertext
 
 
 def decrypt_cbc(private_key, ciphertext):
-    block_size = (private_key[0].bit_length() + 7) // 8
+    n, d = private_key
+    block_size = (n.bit_length() + 7) // 8 - 1
     iv = ciphertext[:block_size]
-    blocks = [ciphertext[i:i + block_size] for i in range(block_size, len(ciphertext), block_size)]
+    blocks = [ciphertext[i:i + block_size + 1] for i in range(block_size, len(ciphertext), block_size + 1)]
     plaintext_blocks = []
     for i, block in enumerate(blocks):
         c = int.from_bytes(block, byteorder='big')
-        m = pow(c, private_key[1], private_key[0]) ^ int.from_bytes(iv if i == 0 else blocks[i - 1], byteorder='big')
+        m = pow(c, d, n) ^ int.from_bytes(iv, byteorder='big') if i == 0 else pow(c, d, n) ^ int.from_bytes(blocks[i - 1], byteorder='big')
         plaintext_blocks.append(m.to_bytes(block_size, byteorder='big'))
-    return unpad_message(b''.join(plaintext_blocks)).decode('utf-8')
+    plaintext = unpad_message(b''.join(plaintext_blocks))
+    plaintext = plaintext.lstrip(b'\x00')
+    return plaintext.decode()
+
 
 
 public_key, private_key = generate_keys()
